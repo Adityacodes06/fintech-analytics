@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="description" content="E-Commerce Sales & Customer Behavior Analytics Dashboard — 120K+ transactions, RFM, cohort, A/B testing, forecasting, and actionable insights."/>
+<title>E-Commerce Analytics Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<!-- Toast container -->
+<div id="toast-container"></div>
+<!-- Loading overlay -->
+<div id="loading-overlay"><div class="spinner"></div><p>Generating 120K+ transaction records…</p></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo"><div class="logo-icon">📊</div><span>Commerce Analytics</span></div>
+    <div class="header-controls">
+      <button class="btn-sm" id="btn-upload" onclick="document.getElementById('csv-file').click()">📁 Upload CSV</button>
+      <input type="file" id="csv-file" accept=".csv" hidden/>
+      <button class="btn-sm" id="btn-reset-data" style="display:none" onclick="resetToDemo()">↺ Demo Data</button>
+      <button class="btn-sm" id="btn-export-pdf" onclick="exportFullPDF()">📄 Export PDF</button>
+      <button class="btn-icon" id="btn-theme" onclick="toggleTheme()" title="Toggle dark/light mode">🌙</button>
+    </div>
+  </div>
+</header>
+
+<!-- FILTERS BAR -->
+<div class="filters-bar" id="filters-bar">
+  <div class="filters-inner">
+    <div class="filter-group">
+      <label>Date Range</label>
+      <input type="date" id="f-start" class="filter-input"/>
+      <span class="filter-sep">→</span>
+      <input type="date" id="f-end" class="filter-input"/>
+    </div>
+    <div class="filter-group">
+      <label>Category</label>
+      <select id="f-category" class="filter-input" multiple></select>
+    </div>
+    <div class="filter-group">
+      <label>Channel</label>
+      <select id="f-channel" class="filter-input" multiple></select>
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select id="f-status" class="filter-input">
+        <option value="all">All</option>
+        <option value="delivered" selected>Delivered Only</option>
+        <option value="with-returns">Include Returns</option>
+      </select>
+    </div>
+    <button class="btn-primary-sm" onclick="applyFilters()">Apply</button>
+    <button class="btn-ghost-sm" onclick="resetFilters()">Reset</button>
+  </div>
+  <div class="filter-chips" id="filter-chips"></div>
+</div>
+
+<!-- NAV TABS -->
+<nav class="nav-tabs" id="main-nav">
+  <div class="nav-inner">
+    <button class="nav-tab active" data-tab="overview">Overview</button>
+    <button class="nav-tab" data-tab="revenue">Revenue Trends</button>
+    <button class="nav-tab" data-tab="products">Products</button>
+    <button class="nav-tab" data-tab="funnel">Funnel</button>
+    <button class="nav-tab" data-tab="rfm">RFM</button>
+    <button class="nav-tab" data-tab="cohort">Cohort</button>
+    <button class="nav-tab" data-tab="abtest">A/B Test</button>
+    <button class="nav-tab" data-tab="insights">Insights</button>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main" id="main-content">
+
+<!-- TAB: OVERVIEW -->
+<section class="tab-panel active" id="tab-overview">
+  <div class="section-hdr"><h2>Executive Overview</h2><p id="overview-sub"></p></div>
+  <div class="kpi-grid" id="kpi-overview"></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Revenue & Orders by Month</span><span class="badge">dual axis</span><button class="btn-xs" onclick="exportChart('c-rev-orders')">PNG</button></div><canvas id="c-rev-orders"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Revenue by Channel Over Time</span><span class="badge">stacked</span><button class="btn-xs" onclick="exportChart('c-rev-channel-time')">PNG</button></div><canvas id="c-rev-channel-time"></canvas></div>
+  </div>
+  <div class="card"><div class="card-hdr"><span>Revenue by State</span><span class="badge">geo</span><button class="btn-xs" onclick="exportTableCSV('tbl-geo')">CSV</button></div><div class="scroll-x"><table class="tbl" id="tbl-geo"></table></div></div>
+</section>
+
+<!-- TAB: REVENUE -->
+<section class="tab-panel" id="tab-revenue">
+  <div class="section-hdr"><h2>Revenue Deep Dive</h2><p>Trends, forecasting & anomaly detection</p></div>
+  <div class="kpi-grid" id="kpi-revenue"></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Monthly Revenue + Forecast</span><button class="info-btn" onclick="showMethodology('regression')">ⓘ</button><button class="btn-xs" onclick="exportChart('c-rev-forecast')">PNG</button></div><canvas id="c-rev-forecast"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Revenue by Category</span><span class="badge">stacked</span></div><canvas id="c-rev-cat-stack"></canvas></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Channel Mix</span><span class="badge">doughnut</span></div><canvas id="c-channel-donut"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Cumulative Growth</span></div><canvas id="c-cumulative"></canvas></div>
+  </div>
+  <div class="card"><div class="card-hdr"><span>Month-over-Month Change</span><button class="btn-xs" onclick="exportTableCSV('tbl-mom')">CSV</button></div><div class="scroll-x"><table class="tbl" id="tbl-mom"></table></div></div>
+</section>
+
+<!-- TAB: PRODUCTS -->
+<section class="tab-panel" id="tab-products">
+  <div class="section-hdr"><h2>Product Performance</h2><p>SKU analysis with revenue leakage detection</p></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Top 10 SKUs by Revenue</span></div><canvas id="c-top-skus"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Revenue Share by Category</span></div><canvas id="c-cat-polar"></canvas></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Price vs Quantity (bubble = revenue)</span></div><canvas id="c-price-qty"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Return Rate by Category</span></div><canvas id="c-return-rate"></canvas></div>
+  </div>
+  <div class="card danger-border"><div class="card-hdr"><span class="text-danger">⚠ Underperforming SKUs — Revenue Leakage</span></div><div class="scroll-x"><table class="tbl" id="tbl-leakage"></table></div></div>
+  <div class="card"><div class="card-hdr"><span>Product Table</span><input type="text" class="search-input" id="prod-search" placeholder="Search SKU or product..." oninput="filterProductTable()"/><button class="btn-xs" onclick="exportTableCSV('tbl-products')">CSV</button></div><div class="scroll-x"><table class="tbl sortable" id="tbl-products"></table></div></div>
+</section>
+
+<!-- TAB: FUNNEL -->
+<section class="tab-panel" id="tab-funnel">
+  <div class="section-hdr"><h2>Conversion Funnel</h2><p>End-to-end journey with drop-off analysis</p></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Overall Funnel</span></div><div id="funnel-visual"></div></div>
+    <div class="card"><div class="card-hdr"><span>Organic vs Paid Funnel</span></div><div class="grid-2-inner"><div id="funnel-organic"></div><div id="funnel-paid"></div></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Weekly Conversion Rate (12 weeks)</span></div><canvas id="c-conv-trend"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Conversion by Device Type</span></div><div class="scroll-x"><table class="tbl" id="tbl-device"></table></div></div>
+  </div>
+</section>
+
+<!-- TAB: RFM -->
+<section class="tab-panel" id="tab-rfm">
+  <div class="section-hdr"><h2>RFM Segmentation</h2><button class="info-btn" onclick="showMethodology('rfm')">ⓘ Methodology</button><p>Quintile-based scoring across Recency, Frequency, Monetary</p></div>
+  <div class="kpi-grid" id="kpi-rfm"></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Recency vs Frequency</span><span class="badge">bubble=monetary</span></div><canvas id="c-rfm-bubble"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Segment Distribution</span></div><canvas id="c-rfm-donut"></canvas></div>
+  </div>
+  <div class="card"><div class="card-hdr"><span>Revenue by Segment</span></div><canvas id="c-rfm-rev"></canvas></div>
+  <div class="card"><div class="card-hdr"><span>Segment Details</span><button class="btn-xs" onclick="exportTableCSV('tbl-rfm')">CSV</button></div><div class="scroll-x"><table class="tbl" id="tbl-rfm"></table></div></div>
+  <!-- CLV Calculator -->
+  <div class="card widget-card"><div class="card-hdr"><span>💰 Customer Lifetime Value Calculator</span></div>
+    <div class="widget-form">
+      <div class="wf-row"><label>Avg Order Value ($)</label><input type="number" id="clv-aov" value="92" step="1"/></div>
+      <div class="wf-row"><label>Purchase Frequency (per year)</label><input type="number" id="clv-freq" value="4.2" step="0.1"/></div>
+      <div class="wf-row"><label>Annual Churn Rate (%)</label><input type="number" id="clv-churn" value="25" step="1"/></div>
+      <button class="btn-primary-sm" onclick="calcCLV()">Calculate CLV</button>
+      <div id="clv-result" class="widget-result"></div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: COHORT -->
+<section class="tab-panel" id="tab-cohort">
+  <div class="section-hdr"><h2>Cohort Retention</h2><p>Monthly cohort analysis tracking customer retention</p></div>
+  <div class="card"><div class="card-hdr"><span>Retention Heatmap</span><button class="btn-xs" onclick="exportTableCSV('tbl-cohort')">CSV</button></div><div class="scroll-x"><table class="tbl" id="tbl-cohort"></table></div></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Repeat Purchase Rate Trend</span></div><canvas id="c-repeat-trend"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Time Between Orders (days)</span></div><canvas id="c-time-between"></canvas></div>
+  </div>
+  <!-- Churn Predictor -->
+  <div class="card widget-card"><div class="card-hdr"><span>🔮 Churn Probability Predictor</span><button class="info-btn" onclick="showMethodology('churn')">ⓘ</button></div>
+    <div class="widget-form">
+      <div class="wf-row"><label>Days Since Last Order</label><input type="number" id="ch-recency" value="45"/></div>
+      <div class="wf-row"><label>Total Orders</label><input type="number" id="ch-freq" value="3"/></div>
+      <button class="btn-primary-sm" onclick="calcChurn()">Predict Churn</button>
+      <div id="churn-result" class="widget-result"></div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: A/B TEST -->
+<section class="tab-panel" id="tab-abtest">
+  <div class="section-hdr"><h2>A/B Test Analysis</h2><p>Promotional strategy test with statistical significance</p></div>
+  <div class="ab-header-row">
+    <span class="ab-label control">A — Control</span><span class="ab-vs">vs</span><span class="ab-label treatment">B — Treatment</span>
+    <span class="sig-badge" id="ab-sig"><span class="dot-pulse"></span> Statistically Significant (p = 0.003)</span>
+  </div>
+  <div class="kpi-grid" id="kpi-ab"></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-hdr"><span>Metric Comparison</span></div><canvas id="c-ab-compare"></canvas></div>
+    <div class="card"><div class="card-hdr"><span>Sequential Test — Cumulative CVR</span></div><canvas id="c-ab-sequential"></canvas></div>
+  </div>
+  <div class="card"><div class="card-hdr"><span>Detailed Results</span></div><div class="scroll-x"><table class="tbl" id="tbl-ab"></table></div></div>
+  <div class="grid-2">
+    <!-- Sample Size Calculator -->
+    <div class="card widget-card"><div class="card-hdr"><span>🧮 Sample Size Calculator</span></div>
+      <div class="widget-form">
+        <div class="wf-row"><label>Baseline CVR (%)</label><input type="number" id="ss-base" value="8.2" step="0.1"/></div>
+        <div class="wf-row"><label>Min Detectable Effect (%)</label><input type="number" id="ss-mde" value="10" step="1"/></div>
+        <div class="wf-row"><label>Significance (α)</label><input type="number" id="ss-alpha" value="0.05" step="0.01"/></div>
+        <div class="wf-row"><label>Power (1-β)</label><input type="number" id="ss-power" value="0.80" step="0.05"/></div>
+        <button class="btn-primary-sm" onclick="calcSampleSize()">Calculate</button>
+        <div id="ss-result" class="widget-result"></div>
+      </div>
+    </div>
+    <!-- Bayesian -->
+    <div class="card widget-card"><div class="card-hdr"><span>📊 Bayesian A/B Analysis</span><button class="info-btn" onclick="showMethodology('bayesian')">ⓘ</button></div>
+      <div id="bayesian-result" class="widget-result"></div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: INSIGHTS -->
+<section class="tab-panel" id="tab-insights">
+  <div class="section-hdr"><h2>Key Insights & Forecasting</h2><p>AI-powered recommendations with 3-month forecast</p></div>
+  <div class="insights-grid" id="insights-container"></div>
+  <div class="card"><div class="card-hdr"><span>3-Month Revenue Forecast</span><span class="badge">linear regression</span></div><canvas id="c-forecast-detail"></canvas>
+    <div id="forecast-numbers" class="forecast-nums"></div>
+  </div>
+  <button class="btn-primary" onclick="exportInsightsPDF()" style="margin-top:1rem">📄 Export Insights Report (PDF)</button>
+</section>
+
+</main>
+
+<!-- Methodology Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
