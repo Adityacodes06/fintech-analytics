@@ -177,6 +177,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .heat-cell{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:.78rem;text-align:center;border-radius:4px;transition:transform .15s}
 .heat-cell:hover{transform:scale(1.1)}
 
+/* Charts */
+canvas { max-height: 300px !important; width: 100% !important; height: auto !important; }
+.card { display: flex; flex-direction: column; min-height: 350px; }
+.card-hdr { flex-shrink: 0; }
+.tab-panel { width: 100%; }
+
 /* Responsive */
 @media(max-width:768px){
   .grid-2,.grid-3,.grid-2-inner{grid-template-columns:1fr}
@@ -187,6 +193,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   .nav-tab{padding:6px 12px;font-size:.75rem}
   .insights-grid{grid-template-columns:1fr}
   .forecast-nums{grid-template-columns:1fr}
+  canvas { max-height: 250px !important; }
 }
 
 /* Scrollbar */
